@@ -1,0 +1,11 @@
+spring:
+  datasource:
+    driver-class-name: org.h2.Driver
+    username: sa
+    url: jdbc:h2:mem:testdb
+    password: ''
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: 'false'
+jwt-secret: LUVgVZ3AmKy8ZNBcaQbIb/6uz82RRzBt9Vhb3Qqx6z+ZFJAEEeIPWUSwtc9joou1

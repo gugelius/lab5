@@ -1,0 +1,168 @@
+name: CI
+
+on: [push, pull_request]
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'corretto'
+      - name: Cache Maven dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-
+      - name: Run unit tests (service layer only)
+        run: mvn --batch-mode clean test -Dspring.profiles.active=test -Dtest="**/service/**/*Test"
+
+  build-docker:
+    runs-on: ubuntu-latest
+    needs: unit-tests
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Build Docker image
+        run: |
+          docker build -t my-app:latest .
+      - name: Save Docker image
+        run: |
+          docker save my-app:latest -o my-app.tar
+      - name: Upload Docker image
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-image
+          path: my-app.tar
+          retention-days: 1
+
+  deploy-to-stage:
+    runs-on: ubuntu-latest
+    needs: build-docker
+    steps:
+      - name: Deploy to staging environment
+        run: |
+          echo "Deploying to staging environment..."
+          curl -X POST "${{ secrets.DEV_SECRET_KEY }}"
+          echo "Staging deployment triggered"
+
+      - name: Wait for staging to be ready
+        run: |
+          echo "Waiting for staging environment to be ready..."
+          sleep 45
+
+  integration-tests:
+    runs-on: ubuntu-latest
+    needs: deploy-to-stage
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'corretto'
+      - name: Cache Maven dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+      - name: Run integration tests against staging
+        run: |
+          echo "Running integration tests against staging environment..."
+          mvn --batch-mode test -Dspring.profiles.active=test -Dtest="**/controller/**/*Test"
+
+  stage-health-check:
+    runs-on: ubuntu-latest
+    needs: integration-tests
+    steps:
+      - name: Check health endpoint with retries
+        run: |
+          echo "Checking health of production environment..."
+          # BREAKING HEALTH CHECK
+          for i in {1..30}; do
+            response=$(curl -s -w "%{http_code}" -o tmp_health.json \
+              -H "Accept: application/json" \
+              "https://springwebapp-test.onrender.com/actuator/health")
+          
+            if [ "$response" -eq 200 ]; then
+              if grep -q '"status":"UP"' tmp_health.json; then
+                echo "Production health check passed - HTTP 200 and Status UP"
+                exit 0
+              else
+                echo "HTTP 200 but status not UP, waiting..."
+              fi
+            else
+              echo "Attempt $i failed - HTTP $response, waiting 30 seconds..."
+            fi
+            sleep 10
+          done
+          echo "Production health check failed after 10 attempts"
+          exit 1
+
+  deploy-to-prod:
+    needs: stage-health-check
+    runs-on: ubuntu-latest
+    if: success() && needs.integration-tests.result == 'success'
+    steps:
+      - name: Deploy to production
+        run: |
+          echo "Deploying to production..."
+          curl -X POST "${{ secrets.PROD_SECRET_KEY }}"
+          echo "Production deployment triggered"
+
+  rollback:
+    runs-on: ubuntu-latest
+    needs: [unit-tests, build-docker, deploy-to-stage, integration-tests, stage-health-check, deploy-to-prod]
+    if: failure()
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Rollback to previous commit
+        run: |
+          echo "Rollback triggered due to failure in pipeline"
+          git fetch origin
+          git reset --hard HEAD~1
+          echo "Rollback complete"
+
+
+
+#  prod-health-check:
+#    runs-on: ubuntu-latest
+#    needs: deploy-to-prod
+#    steps:
+#      - name: Check health endpoint with retries
+#        run: |
+#          sleep 210
+#          echo "Checking health of production environment..."
+#          # BREAKING HEALTH CHECK
+#          for i in {1..10}; do
+#            response=$(curl -s -w "%{http_code}" -o tmp_health.json \
+#              -H "Accept: application/json" \
+#              "https://springwebapp.SUS.com/actuator/health")
+#
+#            if [ "$response" -eq 200 ]; then
+#              if grep -q '"status":"UP"' tmp_health.json; then
+#                echo "Production health check passed - HTTP 200 and Status UP"
+#                exit 0
+#              else
+#                echo "HTTP 200 but status not UP, waiting..."
+#              fi
+#            else
+#              echo "Attempt $i failed - HTTP $response, waiting 30 seconds..."
+#            fi
+#            sleep 30
+#          done
+#          echo "Production health check failed after 10 attempts"
+#          exit 1
