@@ -51,7 +51,7 @@ jobs:
       - name: Deploy to staging environment
         run: |
           echo "Deploying to staging environment..."
-          curl -X POST "${{ secrets.DEV_SECRET_KEY }}"
+          curl -X POST "${{ secrets.STAGE_DEPLOY_HOOK }}"
           echo "Staging deployment triggered"
 
       - name: Wait for staging to be ready
@@ -116,7 +116,7 @@ jobs:
       - name: Deploy to production
         run: |
           echo "Deploying to production..."
-          curl -X POST "${{ secrets.PROD_SECRET_KEY }}"
+          curl -X POST "${{ secrets.PROD_DEPLOY_HOOK }}"
           echo "Production deployment triggered"
 
   rollback:
