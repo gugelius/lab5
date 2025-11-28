@@ -29,7 +29,7 @@ class UserControllerTest {
         UserCredentialsDto userCredentialsDto = new UserCredentialsDto();
         userCredentialsDto.setEmail("test@gmail.com");
         /*** TEST BREAK ***/
-        userCredentialsDto.setPassword("1234dhsad5");
+        userCredentialsDto.setPassword("12345");
 
         String loginJson = objectMapper.writeValueAsString(userCredentialsDto);
 
