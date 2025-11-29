@@ -27,7 +27,7 @@ public class AuthController {
             JwtAuthenticationDto jwtAuthenticationDto = userService.signIn(userCredentialsDto);
             return ResponseEntity.ok(jwtAuthenticationDto);
         } catch (AuthenticationException e) {
-            throw new RuntimeException("Authentication failed: " + e.getMessage() + "sSSSSSSSSSSSSSSSSSSSS");
+            throw new RuntimeException("Authentication failed: " + e.getMessage() + "unlucko malucko");
         }
     }
 
