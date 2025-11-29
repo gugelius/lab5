@@ -34,7 +34,7 @@ class AuthControllerTest {
     void singInTest() throws Exception {
         UserCredentialsDto userCredentialsDto = new UserCredentialsDto();
         userCredentialsDto.setEmail("test@gmail.com");
-        userCredentialsDto.setPassword("12345");
+        userCredentialsDto.setPassword("12345dsafasfasfasfa");
 
         String userJson = objectMapper.writeValueAsString(userCredentialsDto);
 

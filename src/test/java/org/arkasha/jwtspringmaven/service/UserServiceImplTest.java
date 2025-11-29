@@ -64,10 +64,8 @@ public class UserServiceImplTest {
 
         JwtAuthenticationDto result = userService.signIn(credentials);
 
-//        assertEquals("access", result.getToken());
-//        assertEquals("refresh", result.getRefreshToken());
-        assertEquals("access321412fsafas", result.getToken());
-       assertEquals("refresh", result.getRefreshToken());
+        assertEquals("access", result.getToken());
+        assertEquals("refresh", result.getRefreshToken());
         verify(userRepository).save(any(User.class));
     }
 
